@@ -33,13 +33,13 @@ class MyWebServer(SocketServer.BaseRequestHandler):
     __message501 = ("HTTP/1.1 501 Not Implemented\n"
                    + "Content-Type text/html\n\n" +
                    "<!DOCTYPE html>\n" +
-                   "<html><body>501 Not Implemented</br>"
-                   + "Server only supports GET.</body></html>")
+                   "<html><body><h1>501 Not Implemented</h1></br>"
+                   + "Server only supports GET.</body></html></br>\n\n")
 
     __message404 = ("HTTP/1.1 404 Not Found\n"
                    + "Content-Type: text/html\n\n"
                    + "<!DOCTYPE html>\n"
-                   + "<html><body>404 Not Found</body></html>")
+                   + "<html><body><h1>404 Not Found</h1></body></html></br>\n\n")
 
     def handle(self):
         self.data = self.request.recv(1024).strip()
@@ -61,7 +61,7 @@ class MyWebServer(SocketServer.BaseRequestHandler):
     def __serveFile(self):
         self.message = ""
         {0: self.__serve404, 1: self.__serveFileFromPath,
-        2: self.__serveFileFromDir}.get(self.__pathValidator(
+         2: self.__handleRedirect}.get(self.__handlePath(
             self.__requestFilePath))()
 
         self.request.sendall(self.message)
@@ -70,21 +70,26 @@ class MyWebServer(SocketServer.BaseRequestHandler):
     def __serve404(self):
         self.message = self.__message404
 
-    def __serveFileFromDir(self):
-        if (self.__requestFilePath):
-            self.message =  ("HTTP/1.1 200 OK\n"
-                            + "Content-Type: text/html\n\n"
-                            + open(self.__requestFilePath+"index.html").read())
+    def __handleRedirect(self):
+        newLocation = self.__requestURL + "/"
+        self.message += ("HTTP/1.1 301 Moved Permanently\n"
+                       + "Content-Type: text/html\n"
+                       + "Location: " + newLocation + "\n\n"
+                       + "<!DOCTYPE html>\n"
+                       + "<html><body><h1>301 Moved Permanently</h1></br>"
+                       + "<a href='"+ newLocation + "'>Click to"
+                       + " get redirected</a></body></html></br>\n\n")
 
     def __serveFileFromPath(self):
         if (self.__requestFilePath):
+
             self.__requestFileType = self.__requestFilePath.split(".")[-1] \
                                          .lower()
 
             if self.__requestFileType not in ["html", "css"]:
                 self.__requestFileType = "plain"
 
-            self.message =  ("HTTP/1.1 200 OK\n" + "Content-Type: text/"
+            self.message +=  ("HTTP/1.1 200 OK\n" + "Content-Type: text/"
                             + self.__requestFileType + "\n\n"
                             + open(self.__requestFilePath).read())
 
@@ -98,25 +103,32 @@ class MyWebServer(SocketServer.BaseRequestHandler):
             self.__currentDir = os.path.dirname(
                                 os.path.abspath(
                                 inspect.getfile(inspect.currentframe())))
-            self.__requestFilePath = self.__currentDir + "/www" \
-                                     + self.__requestData[1] \
-                                     if (len(self.__requestData) > 1 \
-                                     and self.__requestData[1]) else ""
+            if (len(self.__requestData) > 1 and self.__requestData[1]):
+                self.__requestURL = self.__requestData[1]
+                self.__requestFilePath = self.__currentDir + "/www" \
+                                         + self.__requestURL
         else:
             self.__requestMethod = ""
             self.__currentDir = ""
             self.__requestFilePath = ""
+            self.__requestURL = ""
 
-    def __pathValidator(self, path):
+    def __handlePath(self, path):
         dirPath = path + "index.html"
 
-        if os.path.isfile(path) and self.__currentDir in os.path.realpath(path):
+        if self.__validateAbsPath(path):
             return 1
-        elif (os.path.isfile(dirPath) \
-              and self.__currentDir in os.path.realpath(dirPath)):
+        elif self.__validateAbsPath(dirPath):
+            self.__requestFilePath = dirPath
+            return 1
+        elif self.__validateAbsPath(path + "/index.html"):
             return 2
         else:
             return 0
+
+    def __validateAbsPath(self, path):
+        return os.path.isfile(path) \
+               and self.__currentDir in os.path.realpath(path)
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
