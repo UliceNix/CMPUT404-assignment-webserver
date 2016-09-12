@@ -33,51 +33,60 @@ class MyWebServer(SocketServer.BaseRequestHandler):
     __message501 = ("HTTP/1.1 501 Not Implemented\n"
                    + "Content-Type text/html\n\n" +
                    "<!DOCTYPE html>\n" +
-                   "<html><body>HTTP/1.1 501 Not Implemented</b>"
+                   "<html><body>501 Not Implemented</br>"
                    + "Server only supports GET.</body></html>")
 
     __message404 = ("HTTP/1.1 404 Not Found\n"
                    + "Content-Type: text/html\n\n"
                    + "<!DOCTYPE html>\n"
-                   + "<html><body>HTTP/1.1 404 Not Found</b>"
-                   + "File not found on server directory.</body></html>")
+                   + "<html><body>404 Not Found</body></html>")
 
     def handle(self):
-        self.message = ""
-        self.message1= ""
-
         self.data = self.request.recv(1024).strip()
+
+        # Prepare request data first
         self.__extractRequestData(self.data)
+
         # Only allow GET method
+        self.__checkMethod()
+
+        # If HTTP method is correct, then proceed to retrieving files
+        self.__serveFile()
+
+    def __checkMethod(self):
         if (self.__requestMethod != "GET"):
             self.request.sendall(self.__message501)
             return
 
-        option = self.__pathValidator1(self.__requestFilePath)
-        if (option == 1):
-            self.__serveFileFromPath()
-        elif (option == 2):
-            self.__serveFileFromDir()
-        else:
-            self.message += self.__message404
+    def __serveFile(self):
+        self.message = ""
+        {0: self.__serve404, 1: self.__serveFileFromPath,
+        2: self.__serveFileFromDir}.get(self.__pathValidator(
+            self.__requestFilePath))()
 
         self.request.sendall(self.message)
+        return
 
+    def __serve404(self):
+        self.message = self.__message404
 
     def __serveFileFromDir(self):
         if (self.__requestFilePath):
             self.message =  ("HTTP/1.1 200 OK\n"
-                   + "Content-Type: text/html\n\n"
-                   + open(self.__requestFilePath+"/index.html").read())
+                            + "Content-Type: text/html\n\n"
+                            + open(self.__requestFilePath+"index.html").read())
 
     def __serveFileFromPath(self):
         if (self.__requestFilePath):
-            self.__requestFileType = self.__requestFilePath.split(".")[-1].lower()
+            self.__requestFileType = self.__requestFilePath.split(".")[-1] \
+                                         .lower()
+
             if self.__requestFileType not in ["html", "css"]:
                 self.__requestFileType = "plain"
-            self.message =  ("HTTP/1.1 200 OK\n"
-                   + "Content-Type: text/" + self.__requestFileType + "\n\n"
-                   + open(self.__requestFilePath).read())
+
+            self.message =  ("HTTP/1.1 200 OK\n" + "Content-Type: text/"
+                            + self.__requestFileType + "\n\n"
+                            + open(self.__requestFilePath).read())
 
     def __extractRequestData(self, request):
         self.__request = request.splitlines()
@@ -89,14 +98,18 @@ class MyWebServer(SocketServer.BaseRequestHandler):
             self.__currentDir = os.path.dirname(
                                 os.path.abspath(
                                 inspect.getfile(inspect.currentframe())))
-            self.__requestFilePath = self.__currentDir + "/www" + self.__requestData[1] if (len(self.__requestData) > 1 and self.__requestData[1]) else ""
+            self.__requestFilePath = self.__currentDir + "/www" \
+                                     + self.__requestData[1] \
+                                     if (len(self.__requestData) > 1 \
+                                     and self.__requestData[1]) else ""
         else:
             self.__requestMethod = ""
             self.__currentDir = ""
             self.__requestFilePath = ""
 
-    def __pathValidator1(self, path):
-        dirPath = path + "/index.html"
+    def __pathValidator(self, path):
+        dirPath = path + "index.html"
+
         if os.path.isfile(path) and self.__currentDir in os.path.realpath(path):
             return 1
         elif (os.path.isfile(dirPath) \
@@ -104,9 +117,6 @@ class MyWebServer(SocketServer.BaseRequestHandler):
             return 2
         else:
             return 0
-
-    def __pathValidator(self, path):
-        return os.path.isfile(path) and self.__currentDir in os.path.realpath(path)
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
