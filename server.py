@@ -31,15 +31,15 @@ import SocketServer
 
 class MyWebServer(SocketServer.BaseRequestHandler):
     __message501 = ("HTTP/1.1 501 Not Implemented\n"
-                   + "Content-Type text/html\n\n" +
+                   + "Content-Type text/html\r\n" +
                    "<!DOCTYPE html>\n" +
                    "<html><body><h1>501 Not Implemented</h1></br>"
-                   + "Server only supports GET.</body></html></br>\n\n")
+                   + "Server only supports GET.</body></html></br>\r\n")
 
     __message404 = ("HTTP/1.1 404 Not Found\n"
-                   + "Content-Type: text/html\n\n"
+                   + "Content-Type: text/html\r\n"
                    + "<!DOCTYPE html>\n"
-                   + "<html><body><h1>404 Not Found</h1></body></html></br>\n\n")
+                   + "<html><body><h1>404 Not Found</h1></body></html></br>\r\n")
 
     def handle(self):
         self.data = self.request.recv(1024).strip()
@@ -74,11 +74,11 @@ class MyWebServer(SocketServer.BaseRequestHandler):
         newLocation = self.__requestURL + "/"
         self.message += ("HTTP/1.1 301 Moved Permanently\n"
                        + "Content-Type: text/html\n"
-                       + "Location: " + newLocation + "\n\n"
+                       + "Location: " + newLocation + "\r\n"
                        + "<!DOCTYPE html>\n"
                        + "<html><body><h1>301 Moved Permanently</h1></br>"
                        + "<a href='"+ newLocation + "'>Click to"
-                       + " get redirected</a></body></html></br>\n\n")
+                       + " get redirected</a></body></html></br>\r\n")
 
     def __serveFileFromPath(self):
         if (self.__requestFilePath):
@@ -90,7 +90,7 @@ class MyWebServer(SocketServer.BaseRequestHandler):
                 self.__requestFileType = "plain"
 
             self.message +=  ("HTTP/1.1 200 OK\n" + "Content-Type: text/"
-                            + self.__requestFileType + "\n\n"
+                            + self.__requestFileType + "\r\n"
                             + open(self.__requestFilePath).read())
 
     def __extractRequestData(self, request):

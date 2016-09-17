@@ -34,3 +34,12 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# Virtualenv
+/venv
+
+# Test Data
+/www
+
+# Chmod runner.sh
+runner.sh
